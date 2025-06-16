@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>意思決定 - Plurality Pro</title>
+    <script src="https://unpkg.com/three@0.155.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #1a202c;
+        }
+
+        .decision-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 280px 1fr 350px;
+            gap: 20px;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 20px;
+            height: fit-content;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .main-decision {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .voting-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 20px;
+            height: fit-content;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 800;
+            background: linear-gradient(45deg, #6366f1, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .nav-back {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            color: #6b7280;
+            text-decoration: none;
+        }
+
+        .nav-back:hover {
+            background: rgba(99, 102, 241, 0.1);
+            color: #6366f1;
+        }
+
+        .nav-back-icon {
+            margin-right: 8px;
+            font-size: 16px;
+        }
+
+        .decision-header {
+            margin-bottom: 30px;
+        }
+
+        .decision-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 12px;
+        }
+
+        .decision-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .decision-status {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            background: linear-gradient(45deg, #f59e0b, #fbbf24);
+            color: white;
+        }
+
+        .decision-layers {
+            margin-bottom: 30px;
+        }
+
+        .layer-container {
+            margin-bottom: 25px;
+        }
+
+        .layer-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05));
+            border-radius: 16px;
+            margin-bottom: 15px;
+            border-left: 4px solid #6366f1;
+        }
+
+        .layer-title {
+            display: flex;
+            align-items: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a202c;
+        }
+
+        .layer-icon {
+            margin-right: 12px;
+            font-size: 24px;
+        }
+
+        .layer-status {
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-completed {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+
+        .status-active {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+            animation: pulse 2s infinite;
+        }
+
+        .status-pending {
+            background: rgba(107, 114, 128, 0.1);
+            color: #6b7280;
+        }
+
+        .layer-content {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-left: 20px;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .consensus-meter {
+            margin: 20px 0;
+        }
+
+        .consensus-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .meter-container {
+            background: #f3f4f6;
+            border-radius: 10px;
+            height: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .meter-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ef4444 0%, #f59e0b 25%, #10b981 75%, #059669 100%);
+            border-radius: 10px;
+        }
+
+        .meter-indicator {
+            position: absolute;
+            top: -4px;
+            width: 20px;
+            height: 20px;
+            background: #6366f1;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.8);
+            animation: pulse 2s infinite;
+            z-index: 2;
+        }
+
+        .consensus-score {
+            text-align: center;
+            margin-top: 12px;
+            font-weight: 600;
+            color: #6366f1;
+            font-size: 16px;
+        }
+
+        .participants-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .participant-card {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .participant-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .participant-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .participant-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-right: 12px;
+        }
+
+        .citizen-avatar {
+            background: linear-gradient(45deg, #6366f1, #8b5cf6);
+        }
+
+        .expert-avatar {
+            background: linear-gradient(45deg, #10b981, #34d399);
+        }
+
+        .government-avatar {
+            background: linear-gradient(45deg, #ef4444, #f87171);
+        }
+
+        .participant-info {
+            flex: 1;
+        }
+
+        .participant-name {
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 2px;
+        }
+
+        .participant-role {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .participant-vote {
+            margin-top: 10px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .vote-agree {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+
+        .vote-disagree {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .vote-bridge {
+            background: rgba(99, 102, 241, 0.1);
+            color: #6366f1;
+        }
+
+        .vote-pending {
+            background: rgba(107, 114, 128, 0.1);
+            color: #6b7280;
+        }
+
+        .expert-review {
+            margin-top: 20px;
+        }
+
+        .review-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin: 15px 0;
+        }
+
+        .review-item {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .review-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+
+        .review-score {
+            font-size: 18px;
+            font-weight: 700;
+            color: #10b981;
+        }
+
+        .voting-interface {
+            margin-bottom: 30px;
+        }
+
+        .voting-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .current-proposal {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05));
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #6366f1;
+        }
+
+        .proposal-text {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #374151;
+            margin-bottom: 15px;
+        }
+
+        .vote-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .vote-btn {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .vote-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-agree {
+            background: linear-gradient(45deg, #10b981, #34d399);
+            color: white;
+        }
+
+        .btn-disagree {
+            background: linear-gradient(45deg, #ef4444, #f87171);
+            color: white;
+        }
+
+        .btn-bridge {
+            background: linear-gradient(45deg, #6366f1, #8b5cf6);
+            color: white;
+            animation: bridgePulse 3s infinite;
+        }
+
+        @keyframes bridgePulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
+            50% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+        }
+
+        .vote-icon {
+            font-size: 24px;
+        }
+
+        .vote-label {
+            font-size: 14px;
+        }
+
+        .vote-count {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .my-input {
+            margin-top: 20px;
+        }
+
+        .input-textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            resize: vertical;
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .input-textarea:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .submit-btn {
+            background: linear-gradient(45deg, #6366f1, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
+        }
+
+        .timeline-container {
+            margin-top: 30px;
+        }
+
+        .timeline-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 20px;
+        }
+
+        .timeline-item {
+            display: flex;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 35px;
+            bottom: -15px;
+            width: 2px;
+            background: #e5e7eb;
+        }
+
+        .timeline-item:last-child::before {
+            display: none;
+        }
+
+        .timeline-dot {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            z-index: 2;
+            position: relative;
+        }
+
+        .timeline-dot.completed {
+            background: #10b981;
+            color: white;
+        }
+
+        .timeline-dot.active {
+            background: #f59e0b;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        .timeline-dot.pending {
+            background: #e5e7eb;
+            color: #6b7280;
+        }
+
+        .timeline-content {
+            flex: 1;
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .timeline-step {
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 5px;
+        }
+
+        .timeline-desc {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .real-time-stats {
+            background: rgba(16, 185, 129, 0.05);
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .stats-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #10b981;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .opinion-3d {
+            height: 200px;
+            background: radial-gradient(circle at center, rgba(99, 102, 241, 0.05) 0%, transparent 70%);
+            border-radius: 12px;
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 12px;
+            height: 12px;
+            background: #ef4444;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @media (max-width: 1024px) {
+            .decision-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto;
+                gap: 15px;
+                padding: 15px;
+            }
+
+            .vote-buttons {
+                grid-template-columns: 1fr;
+            }
+
+            .participants-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .bridge-suggestions {
+            background: rgba(99, 102, 241, 0.05);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .bridge-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #6366f1;
+            margin-bottom: 10px;
+        }
+
+        .bridge-suggestion {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #374151;
+            border-left: 3px solid #6366f1;
+        }
+    </style>
+</head>
+<body>
+    <div class="decision-container">
+        <!-- Left Sidebar -->
+        <div class="sidebar">
+            <div class="logo">🏛️ Plurality Pro</div>
+            
+            <a href="plurality-pro-mockup.html" class="nav-back">
+                <span class="nav-back-icon">←</span>
+                ダッシュボードに戻る
+            </a>
+            
+            <div style="margin-top: 20px;">
+                <h4 style="color: #6b7280; font-size: 14px; margin-bottom: 15px;">進行中の決定事項</h4>
+                
+                <div style="background: rgba(245, 158, 11, 0.1); padding: 12px; border-radius: 10px; margin-bottom: 10px; border-left: 3px solid #f59e0b;">
+                    <div style="font-weight: 600; font-size: 14px; color: #1a202c; margin-bottom: 5px;">追加予算要求の是非</div>
+                    <div style="font-size: 12px; color: #6b7280;">富山県AI導入事業</div>
+                    <div class="notification-badge"></div>
+                </div>
+                
+                <div style="background: rgba(107, 114, 128, 0.1); padding: 12px; border-radius: 10px; margin-bottom: 10px;">
+                    <div style="font-weight: 600; font-size: 14px; color: #1a202c; margin-bottom: 5px;">技術仕様変更提案</div>
+                    <div style="font-size: 12px; color: #6b7280;">スマートシティ計画</div>
+                </div>
+                
+                <div style="background: rgba(107, 114, 128, 0.1); padding: 12px; border-radius: 10px;">
+                    <div style="font-weight: 600; font-size: 14px; color: #1a202c; margin-bottom: 5px;">環境評価基準見直し</div>
+                    <div style="font-size: 12px; color: #6b7280;">再エネ導入プロジェクト</div>
+                </div>
+            </div>
+
+            <div class="timeline-container">
+                <div class="timeline-title">📅 意思決定プロセス</div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-dot completed">✓</div>
+                    <div class="timeline-content">
+                        <div class="timeline-step">1. 市民合意形成</div>
+                        <div class="timeline-desc">完了 (89% 合意)</div>
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-dot completed">✓</div>
+                    <div class="timeline-content">
+                        <div class="timeline-step">2. 専門家レビュー</div>
+                        <div class="timeline-desc">完了 (100% 承認)</div>
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-dot active">⏳</div>
+                    <div class="timeline-content">
+                        <div class="timeline-step">3. 追加評価</div>
+                        <div class="timeline-desc">進行中 (72% 合意)</div>
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-dot pending">4</div>
+                    <div class="timeline-content">
+                        <div class="timeline-step">4. 最終承認</div>
+                        <div class="timeline-desc">待機中</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Decision Content -->
+        <div class="main-decision">
+            <div class="decision-header">
+                <div class="decision-title">富山県AI・RPA導入事業：追加予算要求の是非</div>
+                <div class="decision-meta">
+                    <span>提案者: 富山テクノロジー株式会社</span>
+                    <span>期限: 2025/06/30</span>
+                    <span>影響範囲: 全県民</span>
+                </div>
+                <div class="decision-status">レビュー中</div>
+            </div>
+
+            <!-- Layer 1: Citizen Consensus -->
+            <div class="decision-layers">
+                <div class="layer-container">
+                    <div class="layer-header">
+                        <div class="layer-title">
+                            <span class="layer-icon">👥</span>
+                            レイヤー1: 市民合意形成
+                        </div>
+                        <div class="layer-status status-completed">完了</div>
+                    </div>
+                    <div class="layer-content">
+                        <div class="consensus-meter">
+                            <div class="consensus-label">
+                                <span>強い反対</span>
+                                <span>中立</span>
+                                <span>強い賛成</span>
+                            </div>
+                            <div class="meter-container">
+                                <div class="meter-fill"></div>
+                                <div class="meter-indicator" style="left: 72%;"></div>
+                            </div>
+                            <div class="consensus-score">合意率: 89% | ブリッジ度: 84%</div>
+                        </div>
+                        
+                        <div class="participants-grid">
+                            <div class="participant-card">
+                                <div class="participant-header">
+                                    <div class="participant-avatar citizen-avatar">田</div>
+                                    <div class="participant-info">
+                                        <div class="participant-name">田中 良子</div>
+                                        <div class="participant-role">市民代表・会社員</div>
+                                    </div>
+                                </div>
+                                <div class="participant-vote vote-bridge">🌉 ブリッジング</div>
+                            </div>
+                            
+                            <div class="participant-card">
+                                <div class="participant-header">
+                                    <div class="participant-avatar citizen-avatar">山</div>
+                                    <div class="participant-info">
+                                        <div class="participant-name">山田 健太</div>
+                                        <div class="participant-role">自営業・IT関連</div>
+                                    </div>
+                                </div>
+                                <div class="participant-vote vote-agree">👍 賛成</div>
+                            </div>
+                            
+                            <div class="participant-card">
+                                <div class="participant-header">
+                                    <div class="participant-avatar citizen-avatar">佐</div>
+                                    <div class="participant-info">
+                                        <div class="participant-name">佐藤 美穂</div>
+                                        <div class="participant-role">NPO職員</div>
+                                    </div>
+                                </div>
+                                <div class="participant-vote vote-bridge">🌉 ブリッジング</div>
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: center; margin-top: 15px; color: #10b981; font-weight: 600;">
+                            ✅ 市民層での合意形成完了 (参加者: 1,234名)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Layer 2: Expert Review -->
+                <div class="layer-container">
+                    <div class="layer-header">
+                        <div class="layer-title">
+                            <span class="layer-icon">🎓</span>
+                            レイヤー2: 専門家レビュー
+                        </div>
+                        <div class="layer-status status-completed">完了</div>
+                    </div>
+                    <div class="layer-content">
+                        <div class="expert-review">
+                            <div class="review-grid">
+                                <div class="review-item">
+                                    <div class="review-label">技術的実現性</div>
+                                    <div class="review-score">95%</div>
+                                </div>
+                                <div class="review-item">
+                                    <div class="review-label">財務健全性</div>
+                                    <div class="review-score">87%</div>
+                                </div>
+                                <div class="review-item">
+                                    <div class="review-label">法的適合性</div>
+                                    <div class="review-score">100%</div>
+                                </div>
+                                <div class="review-item">
+                                    <div class="review-label">リスク評価</div>
+                                    <div class="review-score">78%</div>
+                                </div>
+                            </div>
+                            
+                            <div class="participants-grid">
+                                <div class="participant-card">
+                                    <div class="participant-header">
+                                        <div class="participant-avatar expert-avatar">中</div>
+                                        <div class="participant-info">
+                                            <div class="participant-name">中村教授</div>
+                                            <div class="participant-role">富山大学・AI専門</div>
+                                        </div>
+                                    </div>
+                                    <div class="participant-vote vote-agree">👍 承認</div>
+                                </div>
+                                
+                                <div class="participant-card">
+                                    <div class="participant-header">
+                                        <div class="participant-avatar expert-avatar">高</div>
+                                        <div class="participant-info">
+                                            <div class="participant-name">高橋氏</div>
+                                            <div class="participant-role">公認会計士</div>
+                                        </div>
+                                    </div>
+                                    <div class="participant-vote vote-bridge">🌉 条件付き承認</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: center; margin-top: 15px; color: #10b981; font-weight: 600;">
+                            ✅ 専門家レビュー完了 (8名中8名が承認)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Layer 3: Current Decision -->
+                <div class="layer-container">
+                    <div class="layer-header">
+                        <div class="layer-title">
+                            <span class="layer-icon">🏛️</span>
+                            レイヤー3: 追加評価レビュー
+                        </div>
+                        <div class="layer-status status-active">進行中</div>
+                    </div>
+                    <div class="layer-content">
+                        <div class="consensus-meter">
+                            <div class="consensus-label">
+                                <span>反対</span>
+                                <span>保留</span>
+                                <span>賛成</span>
+                            </div>
+                            <div class="meter-container">
+                                <div class="meter-fill"></div>
+                                <div class="meter-indicator" style="left: 68%;"></div>
+                            </div>
+                            <div class="consensus-score">現在の合意率: 72% | ブリッジ度: 85%</div>
+                        </div>
+                        
+                        <div class="participants-grid">
+                            <div class="participant-card">
+                                <div class="participant-header">
+                                    <div class="participant-avatar government-avatar">県</div>
+                                    <div class="participant-info">
+                                        <div class="participant-name">富山県財政課</div>
+                                        <div class="participant-role">予算査定担当</div>
+                                    </div>
+                                </div>
+                                <div class="participant-vote vote-pending">⏳ 検討中</div>
+                            </div>
+                            
+                            <div class="participant-card">
+                                <div class="participant-header">
+                                    <div class="participant-avatar expert-avatar">監</div>
+                                    <div class="participant-info">
+                                        <div class="participant-name">監査委員会</div>
+                                        <div class="participant-role">外部監査</div>
+                                    </div>
+                                </div>
+                                <div class="participant-vote vote-bridge">🌉 条件付き</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Voting Panel -->
+        <div class="voting-panel">
+            <div class="voting-interface">
+                <div class="voting-title">🗳️ あなたの意見</div>
+                
+                <div class="current-proposal">
+                    <h4 style="margin-bottom: 10px; color: #6366f1;">現在の提案</h4>
+                    <div class="proposal-text">
+                        技術仕様の高度化に伴い、追加予算¥25Mの承認を求めます。段階的支出と成果連動支払いにより、リスクを最小化します。
+                    </div>
+                </div>
+                
+                <div class="vote-buttons">
+                    <button class="vote-btn btn-agree" onclick="vote('agree')">
+                        <span class="vote-icon">👍</span>
+                        <span class="vote-label">賛成</span>
+                        <span class="vote-count">156票</span>
+                    </button>
+                    
+                    <button class="vote-btn btn-disagree" onclick="vote('disagree')">
+                        <span class="vote-icon">🤔</span>
+                        <span class="vote-label">課題提起</span>
+                        <span class="vote-count">42票</span>
+                    </button>
+                    
+                    <button class="vote-btn btn-bridge" onclick="vote('bridge')">
+                        <span class="vote-icon">🌉</span>
+                        <span class="vote-label">ブリッジング</span>
+                        <span class="vote-count">89票</span>
+                    </button>
+                </div>
+
+                <div class="bridge-suggestions">
+                    <div class="bridge-title">💡 ブリッジング提案例</div>
+                    <div class="bridge-suggestion">
+                        「段階的予算承認制にして、第1段階で50%、成果確認後に残り50%を支出」
+                    </div>
+                    <div class="bridge-suggestion">
+                        「外部監査を条件に、透明性を確保した上での予算追加」
+                    </div>
+                </div>
+
+                <div class="my-input">
+                    <textarea class="input-textarea" placeholder="あなたの意見や提案を記入してください。建設的なブリッジング意見は高く評価されます..."></textarea>
+                    <button class="submit-btn" onclick="submitOpinion()">意見を投稿</button>
+                </div>
+            </div>
+
+            <!-- Opinion 3D Space -->
+            <div class="opinion-3d">
+                <canvas id="opinion-canvas" style="width: 100%; height: 100%;"></canvas>
+            </div>
+
+            <!-- Real-time Stats -->
+            <div class="real-time-stats">
+                <div class="stats-title">📊 リアルタイム統計</div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">287</div>
+                        <div class="stat-label">総参加者</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">85%</div>
+                        <div class="stat-label">ブリッジ度</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">72%</div>
+                        <div class="stat-label">現在合意率</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">6</div>
+                        <div class="stat-label">残り日数</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activities -->
+            <div style="margin-top: 20px;">
+                <h4 style="color: #1a202c; margin-bottom: 15px; font-size: 16px;">📝 最新の活動</h4>
+                
+                <div style="background: white; padding: 12px; border-radius: 10px; margin-bottom: 10px; border-left: 3px solid #6366f1;">
+                    <div style="display: flex; justify-content: between;">
+                        <span style="font-size: 12px; color: #6b7280;">5分前</span>
+                    </div>
+                    <div style="font-weight: 600; font-size: 13px; margin: 5px 0;">監査委員会がブリッジング提案</div>
+                    <div style="font-size: 12px; color: #374151;">「段階的支出での透明性確保」を提案</div>
+                </div>
+
+                <div style="background: white; padding: 12px; border-radius: 10px; margin-bottom: 10px; border-left: 3px solid #10b981;">
+                    <div style="display: flex; justify-content: between;">
+                        <span style="font-size: 12px; color: #6b7280;">15分前</span>
+                    </div>
+                    <div style="font-weight: 600; font-size: 13px; margin: 5px 0;">市民代表 田中さんが賛成</div>
+                    <div style="font-size: 12px; color: #374151;">「雇用創出効果を評価」</div>
+                </div>
+
+                <div style="background: white; padding: 12px; border-radius: 10px; border-left: 3px solid #f59e0b;">
+                    <div style="display: flex; justify-content: between;">
+                        <span style="font-size: 12px; color: #6b7280;">1時間前</span>
+                    </div>
+                    <div style="font-weight: 600; font-size: 13px; margin: 5px 0;">富山県財政課が検討継続</div>
+                    <div style="font-size: 12px; color: #374151;">「追加資料を要請」</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize 3D Opinion Space
+        function initOpinionSpace() {
+            const canvas = document.getElementById('opinion-canvas');
+            if (!canvas) return;
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, canvas.offsetWidth / canvas.offsetHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
+            
+            renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
+            renderer.setClearColor(0x000000, 0);
+
+            // Create clusters for agree, disagree, bridge
+            const agreeGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+            const disagreeGeometry = new THREE.SphereGeometry(0.25, 16, 16);
+            const bridgeGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+
+            const agreeMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x10b981, 
+                transparent: true, 
+                opacity: 0.6,
+                wireframe: true
+            });
+            const disagreeMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xef4444, 
+                transparent: true, 
+                opacity: 0.6,
+                wireframe: true
+            });
+            const bridgeMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x6366f1, 
+                transparent: true, 
+                opacity: 0.8
+            });
+
+            const agreeCluster = new THREE.Mesh(agreeGeometry, agreeMaterial);
+            const disagreeCluster = new THREE.Mesh(disagreeGeometry, disagreeMaterial);
+            const bridgeCluster = new THREE.Mesh(bridgeGeometry, bridgeMaterial);
+
+            agreeCluster.position.set(-0.8, 0, 0);
+            disagreeCluster.position.set(0.8, 0, 0);
+            bridgeCluster.position.set(0, 0, 0);
+
+            scene.add(agreeCluster);
+            scene.add(disagreeCluster);
+            scene.add(bridgeCluster);
+
+            // Add user points
+            const userGeometry = new THREE.SphereGeometry(0.015, 6, 6);
+            const users = [];
+
+            // Simulate current voting distribution (72% agreement, high bridging)
+            for (let i = 0; i < 30; i++) {
+                const userMaterial = new THREE.MeshBasicMaterial({ 
+                    color: new THREE.Color().setHSL(Math.random(), 0.7, 0.6)
+                });
+                const user = new THREE.Mesh(userGeometry, userMaterial);
+                
+                const vote = Math.random();
+                if (vote < 0.55) { // 55% agree
+                    user.position.set(-0.8 + Math.random() * 0.3 - 0.15, Math.random() * 0.3 - 0.15, Math.random() * 0.3 - 0.15);
+                } else if (vote < 0.72) { // 17% bridge
+                    user.position.set(Math.random() * 0.3 - 0.15, Math.random() * 0.3 - 0.15, Math.random() * 0.3 - 0.15);
+                } else { // 28% disagree/concerned
+                    user.position.set(0.8 + Math.random() * 0.3 - 0.15, Math.random() * 0.3 - 0.15, Math.random() * 0.3 - 0.15);
+                }
+                
+                users.push(user);
+                scene.add(user);
+            }
+
+            camera.position.z = 2;
+
+            function animate() {
+                requestAnimationFrame(animate);
+
+                agreeCluster.rotation.y += 0.002;
+                disagreeCluster.rotation.y -= 0.002;
+                bridgeCluster.rotation.x += 0.004;
+                bridgeCluster.rotation.y += 0.004;
+
+                users.forEach(user => {
+                    user.position.y += Math.sin(Date.now() * 0.001 + user.position.x) * 0.0002;
+                });
+
+                renderer.render(scene, camera);
+            }
+
+            animate();
+        }
+
+        // Voting functions
+        function vote(type) {
+            const buttons = document.querySelectorAll('.vote-btn');
+            buttons.forEach(btn => {
+                btn.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    btn.style.transform = 'scale(1)';
+                }, 150);
+            });
+
+            let message = '';
+            switch(type) {
+                case 'agree':
+                    message = '賛成票を投じました！';
+                    break;
+                case 'disagree':
+                    message = '課題提起しました！';
+                    break;
+                case 'bridge':
+                    message = 'ブリッジング提案をしました！';
+                    break;
+            }
+
+            showNotification(message);
+            updateVoteCounts(type);
+        }
+
+        function submitOpinion() {
+            const textarea = document.querySelector('.input-textarea');
+            const text = textarea.value.trim();
+            
+            if (text) {
+                showNotification('意見を投稿しました！ブリッジング度を分析中...');
+                textarea.value = '';
+                
+                // Simulate bridging score calculation
+                setTimeout(() => {
+                    const bridgeScore = Math.floor(Math.random() * 30) + 70;
+                    showNotification(`ブリッジング度: ${bridgeScore}% - 素晴らしい建設的提案です！`);
+                }, 2000);
+            } else {
+                showNotification('意見を入力してください。');
+            }
+        }
+
+        function updateVoteCounts(type) {
+            // Simulate real-time vote count updates
+            const counts = {
+                agree: 156,
+                disagree: 42,
+                bridge: 89
+            };
+            
+            counts[type]++;
+            
+            const buttons = document.querySelectorAll('.vote-btn');
+            buttons.forEach(btn => {
+                const label = btn.querySelector('.vote-label').textContent;
+                const countSpan = btn.querySelector('.vote-count');
+                
+                if (label === '賛成' && type === 'agree') {
+                    countSpan.textContent = `${counts.agree}票`;
+                } else if (label === '課題提起' && type === 'disagree') {
+                    countSpan.textContent = `${counts.disagree}票`;
+                } else if (label === 'ブリッジング' && type === 'bridge') {
+                    countSpan.textContent = `${counts.bridge}票`;
+                }
+            });
+
+            // Update consensus meter
+            const total = counts.agree + counts.disagree + counts.bridge;
+            const agreePercent = (counts.agree / total) * 100;
+            const newPosition = (agreePercent / 100) * 100;
+            
+            const indicator = document.querySelector('.meter-indicator');
+            if (indicator) {
+                indicator.style.left = `${Math.min(90, Math.max(10, newPosition))}%`;
+            }
+        }
+
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(45deg, #10b981, #34d399);
+                color: white;
+                padding: 15px 25px;
+                border-radius: 25px;
+                z-index: 1000;
+                animation: slideIn 0.3s ease;
+                font-weight: 600;
+                box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Real-time updates simulation
+        function simulateRealTimeUpdates() {
+            setInterval(() => {
+                // Update participant count
+                const participantCount = document.querySelector('.stat-value');
+                if (participantCount && participantCount.textContent !== '72%') {
+                    const current = parseInt(participantCount.textContent);
+                    participantCount.textContent = current + Math.floor(Math.random() * 3);
+                }
+                
+                // Occasionally update consensus
+                if (Math.random() < 0.1) {
+                    const indicator = document.querySelector('.meter-indicator');
+                    if (indicator) {
+                        const currentLeft = parseFloat(indicator.style.left) || 68;
+                        const newLeft = Math.max(60, Math.min(75, currentLeft + (Math.random() - 0.5) * 2));
+                        indicator.style.left = `${newLeft}%`;
+                    }
+                }
+            }, 5000);
+        }
+
+        // Initialize everything
+        document.addEventListener('DOMContentLoaded', () => {
+            initOpinionSpace();
+            simulateRealTimeUpdates();
+        });
+
+        // CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
