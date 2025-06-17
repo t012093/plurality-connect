@@ -263,66 +263,208 @@ const NetworkVisualizationPage: React.FC = () => {
     renderer.setClearColor(0x000000, 0);
     renderer.setPixelRatio(window.devicePixelRatio);
 
+    // Enable post-processing effects
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
     sceneRef.current = scene;
     rendererRef.current = renderer;
     cameraRef.current = camera;
+
+    // Add background starfield
+    const starGeometry = new THREE.BufferGeometry();
+    const starMaterial = new THREE.PointsMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.6,
+      size: 2,
+      sizeAttenuation: false
+    });
+
+    const starVertices = [];
+    for (let i = 0; i < 1000; i++) {
+      const x = (Math.random() - 0.5) * 20;
+      const y = (Math.random() - 0.5) * 20;
+      const z = (Math.random() - 0.5) * 20;
+      starVertices.push(x, y, z);
+    }
+
+    starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+    const stars = new THREE.Points(starGeometry, starMaterial);
+    scene.add(stars);
+
+    // Add ambient light
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+    scene.add(ambientLight);
+
+    // Add directional light
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 5, 5);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
 
     // Generate node data
     const nodeData = generateNodeData();
     const nodes: { mesh: THREE.Mesh; data: NodeData }[] = [];
     const connections: THREE.Line[] = [];
 
-    // Create materials for each node type
+    // Create materials for each node type with glow effect
     const materials = Object.fromEntries(
       nodeTypes.map(type => [
         type.key,
-        new THREE.MeshBasicMaterial({ 
+        new THREE.MeshPhongMaterial({ 
           color: type.color,
           transparent: true,
-          opacity: 0.8
+          opacity: 0.9,
+          emissive: type.color,
+          emissiveIntensity: 0.2,
+          shininess: 100
         })
       ])
     );
 
-    // Create nodes
+    // Create glow materials for aura effect
+    const glowMaterials = Object.fromEntries(
+      nodeTypes.map(type => [
+        type.key,
+        new THREE.MeshBasicMaterial({
+          color: type.color,
+          transparent: true,
+          opacity: 0.1,
+          side: THREE.BackSide
+        })
+      ])
+    );
+
+    // Create nodes with aura effect
     const nodeGeometry = new THREE.SphereGeometry(0.08, 16, 16);
+    const glowGeometry = new THREE.SphereGeometry(0.12, 16, 16);
+    
     nodeData.forEach(data => {
+      // Main node
       const node = new THREE.Mesh(nodeGeometry, materials[data.type]);
       node.position.copy(data.position);
+      node.castShadow = true;
+      node.receiveShadow = true;
+
+      // Glow aura
+      const glow = new THREE.Mesh(glowGeometry, glowMaterials[data.type]);
+      glow.position.copy(data.position);
+      
       nodes.push({ mesh: node, data });
       scene.add(node);
+      scene.add(glow);
     });
 
-    // Create connections
-    const lineMaterial = new THREE.LineBasicMaterial({ 
-      color: 0x06b6d4, 
-      transparent: true, 
-      opacity: 0.3 
-    });
-
+    // Create enhanced connections with data flow effect
+    const connectionData: { line: THREE.Line; flowParticles: THREE.Points[] }[] = [];
+    
     for (let i = 0; i < 40; i++) {
       const node1 = nodes[Math.floor(Math.random() * nodes.length)];
       const node2 = nodes[Math.floor(Math.random() * nodes.length)];
       
       if (node1 !== node2) {
+        // Main connection line with glow
         const points = [node1.mesh.position, node2.mesh.position];
         const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        
+        const lineMaterial = new THREE.LineBasicMaterial({ 
+          color: 0x06b6d4, 
+          transparent: true, 
+          opacity: 0.4,
+          linewidth: 2
+        });
+        
         const line = new THREE.Line(geometry, lineMaterial);
         connections.push(line);
         scene.add(line);
+
+        // Create flowing particles along the connection
+        const flowParticles: THREE.Points[] = [];
+        const particleCount = 3; // 半分に減らした
+        
+        for (let j = 0; j < particleCount; j++) {
+          const flowGeometry = new THREE.BufferGeometry();
+          const t = j / particleCount;
+          const position = new THREE.Vector3().lerpVectors(node1.mesh.position, node2.mesh.position, t);
+          
+          flowGeometry.setAttribute('position', new THREE.Float32BufferAttribute([position.x, position.y, position.z], 3));
+          
+          const flowMaterial = new THREE.PointsMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0.8,
+            size: 4,
+            sizeAttenuation: false
+          });
+          
+          const flowParticle = new THREE.Points(flowGeometry, flowMaterial);
+          flowParticles.push(flowParticle);
+          scene.add(flowParticle);
+        }
+        
+        connectionData.push({ line, flowParticles });
       }
     }
 
-    // Central hub
+    // Enhanced central hub with multiple layers
     const centralGeometry = new THREE.SphereGeometry(0.15, 20, 20);
-    const centralMaterial = new THREE.MeshBasicMaterial({ 
+    const centralMaterial = new THREE.MeshPhongMaterial({ 
       color: 0x06b6d4,
       transparent: true,
-      opacity: 0.9
+      opacity: 0.9,
+      emissive: 0x06b6d4,
+      emissiveIntensity: 0.3,
+      shininess: 100
     });
     const centralNode = new THREE.Mesh(centralGeometry, centralMaterial);
     centralNode.position.set(0, 0, 0);
+    centralNode.castShadow = true;
+
+    // Central hub glow layers
+    const centralGlow1 = new THREE.Mesh(
+      new THREE.SphereGeometry(0.25, 20, 20),
+      new THREE.MeshBasicMaterial({
+        color: 0x06b6d4,
+        transparent: true,
+        opacity: 0.1,
+        side: THREE.BackSide
+      })
+    );
+    centralGlow1.position.set(0, 0, 0);
+
+    const centralGlow2 = new THREE.Mesh(
+      new THREE.SphereGeometry(0.35, 20, 20),
+      new THREE.MeshBasicMaterial({
+        color: 0x06b6d4,
+        transparent: true,
+        opacity: 0.05,
+        side: THREE.BackSide
+      })
+    );
+    centralGlow2.position.set(0, 0, 0);
+
+    // Central hub energy rings
+    const ringGeometry = new THREE.RingGeometry(0.4, 0.45, 32);
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: 0x06b6d4,
+      transparent: true,
+      opacity: 0.3,
+      side: THREE.DoubleSide
+    });
+
+    const energyRings: THREE.Mesh[] = [];
+    for (let i = 0; i < 3; i++) {
+      const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+      ring.rotation.x = Math.PI / 2 + (i * Math.PI / 6);
+      ring.position.set(0, 0, 0);
+      energyRings.push(ring);
+      scene.add(ring);
+    }
+
     scene.add(centralNode);
+    scene.add(centralGlow1);
+    scene.add(centralGlow2);
 
     nodesRef.current = nodes;
 
@@ -338,6 +480,41 @@ const NetworkVisualizationPage: React.FC = () => {
       isDragging = true;
       lastMouseX = event.clientX;
       lastMouseY = event.clientY;
+    };
+
+    const createRippleEffect = (position: THREE.Vector3) => {
+      const rippleGeometry = new THREE.RingGeometry(0.1, 0.2, 32);
+      const rippleMaterial = new THREE.MeshBasicMaterial({
+        color: 0x06b6d4,
+        transparent: true,
+        opacity: 0.8,
+        side: THREE.DoubleSide
+      });
+
+      const ripple = new THREE.Mesh(rippleGeometry, rippleMaterial);
+      ripple.position.copy(position);
+      ripple.lookAt(camera.position);
+      scene.add(ripple);
+
+      // Animate ripple expansion and fade
+      const startTime = Date.now();
+      const animateRipple = () => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        const scale = 1 + elapsed * 3;
+        const opacity = Math.max(0, 0.8 - elapsed);
+
+        ripple.scale.setScalar(scale);
+        rippleMaterial.opacity = opacity;
+
+        if (opacity > 0) {
+          requestAnimationFrame(animateRipple);
+        } else {
+          scene.remove(ripple);
+          rippleGeometry.dispose();
+          rippleMaterial.dispose();
+        }
+      };
+      animateRipple();
     };
 
     const handleMouseMove = (event: MouseEvent) => {
@@ -382,6 +559,24 @@ const NetworkVisualizationPage: React.FC = () => {
       }
     };
 
+    const handleMouseClick = (event: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouse = new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1
+      );
+
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouse, camera);
+      
+      const intersects = raycaster.intersectObjects(nodes.map(n => n.mesh));
+      
+      if (intersects.length > 0) {
+        const clickPosition = intersects[0].point;
+        createRippleEffect(clickPosition);
+      }
+    };
+
     const handleMouseUp = () => {
       isDragging = false;
     };
@@ -395,6 +590,7 @@ const NetworkVisualizationPage: React.FC = () => {
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('click', handleMouseClick);
     canvas.addEventListener('wheel', handleWheel);
 
     // Animation loop
@@ -403,17 +599,57 @@ const NetworkVisualizationPage: React.FC = () => {
       animationId = requestAnimationFrame(animate);
 
       if (!isPaused) {
-        // Rotate the network
+        const time = Date.now() * 0.001;
+
+        // Rotate the network slowly
         scene.rotation.y += 0.002;
 
-        // Pulse central node
-        const scale = 1 + Math.sin(Date.now() * 0.003) * 0.1;
-        centralNode.scale.setScalar(scale);
+        // Rotate starfield
+        stars.rotation.x += 0.0005;
+        stars.rotation.y += 0.0008;
 
-        // Animate connections
+        // Pulse central node with multiple layers
+        const centralScale = 1 + Math.sin(time * 3) * 0.15;
+        centralNode.scale.setScalar(centralScale);
+        centralGlow1.scale.setScalar(centralScale * 1.2);
+        centralGlow2.scale.setScalar(centralScale * 1.4);
+
+        // Rotate energy rings
+        energyRings.forEach((ring, index) => {
+          ring.rotation.z += 0.01 * (index + 1);
+          const ringOpacity = 0.2 + Math.sin(time * 2 + index * Math.PI / 3) * 0.1;
+          (ring.material as THREE.MeshBasicMaterial).opacity = ringOpacity;
+        });
+
+
+        // Animate connection flow particles
+        connectionData.forEach((connection, connectionIndex) => {
+          connection.flowParticles.forEach((flowParticle, particleIndex) => {
+            const t = (time * 0.25 + particleIndex * 0.2 + connectionIndex * 0.1) % 1; // スピードを半分に
+            const line = connection.line;
+            const positions = line.geometry.attributes.position.array as Float32Array;
+            
+            const startPos = new THREE.Vector3(positions[0], positions[1], positions[2]);
+            const endPos = new THREE.Vector3(positions[3], positions[4], positions[5]);
+            const currentPos = new THREE.Vector3().lerpVectors(startPos, endPos, t);
+            
+            const particlePositions = flowParticle.geometry.attributes.position.array as Float32Array;
+            particlePositions[0] = currentPos.x;
+            particlePositions[1] = currentPos.y;
+            particlePositions[2] = currentPos.z;
+            
+            flowParticle.geometry.attributes.position.needsUpdate = true;
+            
+            // Fade in/out effect
+            const material = flowParticle.material as THREE.PointsMaterial;
+            material.opacity = Math.sin(t * Math.PI) * 0.8;
+          });
+        });
+
+        // Animate main connections
         connections.forEach((line, index) => {
           const material = line.material as THREE.LineBasicMaterial;
-          material.opacity = 0.2 + Math.sin(Date.now() * 0.001 + index) * 0.15;
+          material.opacity = 0.3 + Math.sin(time * 1.5 + index) * 0.1;
         });
 
         // Filter visibility
@@ -443,6 +679,7 @@ const NetworkVisualizationPage: React.FC = () => {
       canvas.removeEventListener('mousedown', handleMouseDown);
       canvas.removeEventListener('mousemove', handleMouseMove);
       canvas.removeEventListener('mouseup', handleMouseUp);
+      canvas.removeEventListener('click', handleMouseClick);
       canvas.removeEventListener('wheel', handleWheel);
       window.removeEventListener('resize', handleResize);
       scene.clear();

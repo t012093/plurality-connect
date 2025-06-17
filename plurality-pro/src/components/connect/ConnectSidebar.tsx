@@ -185,7 +185,7 @@ export const ConnectSidebar: React.FC = () => {
       {/* Navigation */}
       <NavSection>
         <h4>発見・参加</h4>
-        <NavItem active>
+        <NavItem active onClick={() => window.location.href = '/connect'}>
           <NavIcon>🏠</NavIcon>
           ホーム
         </NavItem>
@@ -198,9 +198,13 @@ export const ConnectSidebar: React.FC = () => {
           スキルマッチング
           <NotificationCount>78</NotificationCount>
         </NavItem>
-        <NavItem>
+        <NavItem onClick={() => window.location.href = '/policy'}>
           <NavIcon>💡</NavIcon>
           政策ナレッジ
+        </NavItem>
+        <NavItem onClick={() => window.location.href = '/policy-summary'}>
+          <NavIcon>📄</NavIcon>
+          政策要約システム
         </NavItem>
       </NavSection>
 
@@ -239,9 +243,13 @@ export const ConnectSidebar: React.FC = () => {
           <NavIcon>🎯</NavIcon>
           NPO・市民団体
         </NavItem>
-        <NavItem>
+        <NavItem onClick={() => window.location.href = '/funding'}>
           <NavIcon>💰</NavIcon>
           資金フロー
+        </NavItem>
+        <NavItem onClick={() => window.location.href = '/network'}>
+          <NavIcon>🕸️</NavIcon>
+          ネットワーク可視化
         </NavItem>
       </NavSection>
     </SidebarContainer>

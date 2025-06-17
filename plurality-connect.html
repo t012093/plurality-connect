@@ -1,0 +1,1291 @@
+<html lang="ja"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plurality Connect - 統合型プロソーシャル・エコシステム</title>
+    <script src="https://unpkg.com/three@0.155.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/d3@7"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            min-height: 100vh;
+            color: #f1f5f9;
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-areas: 
+                "sidebar main connections"
+                "sidebar main connections";
+            grid-template-columns: 280px 1fr 380px;
+            grid-template-rows: 1fr;
+            min-height: 100vh;
+            gap: 0;
+        }
+
+        .sidebar {
+            grid-area: sidebar;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(51, 65, 85, 0.3);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .main-content {
+            grid-area: main;
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            padding: 25px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .connections-panel {
+            grid-area: connections;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(51, 65, 85, 0.3);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(45deg, #06b6d4, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .user-profile {
+            background: rgba(51, 65, 85, 0.4);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(71, 85, 105, 0.3);
+        }
+
+        .profile-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .profile-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #06b6d4, #3b82f6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            margin-right: 15px;
+        }
+
+        .profile-info h3 {
+            color: #f1f5f9;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .profile-location {
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .trust-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .trust-item {
+            text-align: center;
+            padding: 8px;
+            background: rgba(71, 85, 105, 0.3);
+            border-radius: 8px;
+        }
+
+        .trust-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #06b6d4;
+        }
+
+        .trust-label {
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .nav-section {
+            margin-bottom: 25px;
+        }
+
+        .nav-section h4 {
+            color: #94a3b8;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            padding-left: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            margin: 4px 0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            font-size: 14px;
+            color: #cbd5e1;
+            position: relative;
+        }
+
+        .nav-item:hover {
+            background: rgba(51, 65, 85, 0.6);
+            transform: translateX(4px);
+            color: #f1f5f9;
+        }
+
+        .nav-item.active {
+            background: linear-gradient(45deg, rgba(6, 182, 212, 0.2), rgba(59, 130, 246, 0.2));
+            color: #06b6d4;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .nav-icon {
+            margin-right: 12px;
+            font-size: 18px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .notification-count {
+            position: absolute;
+            right: 8px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.3);
+        }
+
+        .page-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .ai-insights-card {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.05));
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ai-insights-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #8b5cf6, #06b6d4);
+        }
+
+        .ai-badge {
+            display: inline-flex;
+            align-items: center;
+            background: linear-gradient(45deg, #8b5cf6, #06b6d4);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .insights-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .insight-item {
+            background: rgba(51, 65, 85, 0.4);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(71, 85, 105, 0.3);
+        }
+
+        .insight-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .insight-icon {
+            margin-right: 10px;
+            font-size: 20px;
+        }
+
+        .insight-title {
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .insight-content {
+            color: #cbd5e1;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .feed-container {
+            background: rgba(51, 65, 85, 0.3);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(71, 85, 105, 0.3);
+        }
+
+        .feed-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .feed-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .feed-filters {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-btn {
+            padding: 6px 12px;
+            background: rgba(71, 85, 105, 0.4);
+            border: 1px solid rgba(71, 85, 105, 0.3);
+            border-radius: 20px;
+            color: #cbd5e1;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn.active {
+            background: linear-gradient(45deg, #06b6d4, #3b82f6);
+            color: white;
+            border-color: transparent;
+        }
+
+        .post-composer {
+            background: rgba(71, 85, 105, 0.3);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(71, 85, 105, 0.3);
+        }
+
+        .composer-textarea {
+            width: 100%;
+            min-height: 80px;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #f1f5f9;
+            font-size: 16px;
+            font-family: inherit;
+            resize: none;
+            line-height: 1.5;
+        }
+
+        .composer-textarea::placeholder {
+            color: #94a3b8;
+        }
+
+        .composer-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-bridge {
+            background: linear-gradient(45deg, #8b5cf6, #06b6d4);
+            color: white;
+        }
+
+        .btn-project {
+            background: rgba(71, 85, 105, 0.6);
+            color: #cbd5e1;
+            border: 1px solid rgba(71, 85, 105, 0.3);
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .post-item {
+            background: rgba(71, 85, 105, 0.3);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(71, 85, 105, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .post-item:hover {
+            background: rgba(71, 85, 105, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .post-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .post-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 12px;
+        }
+
+        .author-info {
+            flex: 1;
+        }
+
+        .author-name {
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 2px;
+        }
+
+        .post-meta {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .bridge-score {
+            background: linear-gradient(45deg, #8b5cf6, #06b6d4);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .post-content {
+            color: #cbd5e1;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .post-engagement {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .engagement-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .engagement-btn {
+            background: none;
+            border: 1px solid rgba(71, 85, 105, 0.3);
+            color: #94a3b8;
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .engagement-btn:hover {
+            border-color: #06b6d4;
+            color: #06b6d4;
+        }
+
+        .connections-header {
+            margin-bottom: 20px;
+        }
+
+        .connections-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 10px;
+        }
+
+        .network-viz {
+            height: 250px;
+            background: rgba(51, 65, 85, 0.3);
+            border-radius: 16px;
+            margin-bottom: 25px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(71, 85, 105, 0.3);
+        }
+
+        .money-flow-section {
+            background: rgba(51, 65, 85, 0.3);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(71, 85, 105, 0.3);
+        }
+
+        .flow-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .flow-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+        }
+
+        .flow-item:last-child {
+            border-bottom: none;
+        }
+
+        .flow-label {
+            color: #cbd5e1;
+            font-size: 14px;
+        }
+
+        .flow-amount {
+            color: #06b6d4;
+            font-weight: 600;
+        }
+
+        .active-projects {
+            background: rgba(51, 65, 85, 0.3);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(71, 85, 105, 0.3);
+        }
+
+        .project-item {
+            padding: 12px;
+            background: rgba(71, 85, 105, 0.3);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .project-item:hover {
+            background: rgba(71, 85, 105, 0.5);
+            transform: translateX(4px);
+        }
+
+        .project-name {
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 5px;
+        }
+
+        .project-status {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .floating-fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(45deg, #8b5cf6, #06b6d4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .floating-fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 12px 35px rgba(139, 92, 246, 0.6);
+        }
+
+        .knowledge-base {
+            background: rgba(51, 65, 85, 0.3);
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 25px;
+            border: 1px solid rgba(71, 85, 105, 0.3);
+        }
+
+        .knowledge-item {
+            padding: 12px;
+            background: rgba(71, 85, 105, 0.3);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .knowledge-item:hover {
+            background: rgba(71, 85, 105, 0.5);
+        }
+
+        .knowledge-title {
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .knowledge-summary {
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+
+        @media (max-width: 1200px) {
+            .app-container {
+                grid-template-areas: 
+                    "sidebar"
+                    "main"
+                    "connections";
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto;
+            }
+        }
+
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .glow-effect {
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+        }
+
+        .data-stream {
+            position: absolute;
+            width: 2px;
+            height: 20px;
+            background: linear-gradient(to bottom, transparent, #06b6d4, transparent);
+            animation: dataFlow 3s linear infinite;
+        }
+
+        @keyframes dataFlow {
+            0% { transform: translateY(-100px); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(300px); opacity: 0; }
+        }
+    </style>
+<style>
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        </style></head>
+<body>
+    <div class="app-container">
+        <!-- Left Sidebar -->
+        <div class="sidebar">
+            <div class="logo">🌐 Plurality Connect</div>
+            
+            <!-- User Profile with Trust Metrics -->
+            <div class="user-profile">
+                <div class="profile-header">
+                    <div class="profile-avatar">田</div>
+                    <div class="profile-info">
+                        <h3>田中 太郎</h3>
+                        <div class="profile-location">富山県富山市 | IT専門</div>
+                    </div>
+                </div>
+                <div class="trust-metrics">
+                    <div class="trust-item">
+                        <div class="trust-value">92</div>
+                        <div class="trust-label">信頼スコア</div>
+                    </div>
+                    <div class="trust-item">
+                        <div class="trust-value">87%</div>
+                        <div class="trust-label">協働率</div>
+                    </div>
+                    <div class="trust-item">
+                        <div class="trust-value">156</div>
+                        <div class="trust-label">ブリッジ度</div>
+                    </div>
+                    <div class="trust-item">
+                        <div class="trust-value">1,247</div>
+                        <div class="trust-label">トークン</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Navigation -->
+            <div class="nav-section">
+                <h4>発見・参加</h4>
+                <div class="nav-item active">
+                    <span class="nav-icon">🏠</span>
+                    ホーム
+                </div>
+                <div class="nav-item">
+                    <span class="nav-icon">🔍</span>
+                    プロジェクト発見
+                </div>
+                <div class="nav-item">
+                    <span class="nav-icon">🤝</span>
+                    スキルマッチング
+                    <span class="notification-count">78</span>
+                </div>
+                <div class="nav-item">
+                    <span class="nav-icon">💡</span>
+                    政策ナレッジ
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <h4>協働・実行</h4>
+                <div class="nav-item">
+                    <span class="nav-icon">📋</span>
+                    マイプロジェクト
+                </div>
+                <div class="nav-item">
+                    <span class="nav-icon">💼</span>
+                    入札・プロボノ
+                    <span class="notification-count">77</span>
+                </div>
+                <div class="nav-item">
+                    <span class="nav-icon">💬</span>
+                    協議スペース
+                </div>
+                <div class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    インパクト測定
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <h4>地域エコシステム</h4>
+                <div class="nav-item">
+                    <span class="nav-icon">🏛️</span>
+                    行政連携
+                </div>
+                <div class="nav-item">
+                    <span class="nav-icon">🏢</span>
+                    企業ネットワーク
+                </div>
+                <div class="nav-item">
+                    <span class="nav-icon">🎯</span>
+                    NPO・市民団体
+                </div>
+                <div class="nav-item">
+                    <span class="nav-icon">💰</span>
+                    資金フロー
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="main-header">
+                <div class="page-title">統合ダッシュボード</div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="action-btn btn-project">新規提案</button>
+                    <button class="action-btn btn-bridge">🌉 ブリッジング</button>
+                </div>
+            </div>
+
+            <!-- AI Insights Section -->
+            <div class="ai-insights-card">
+                <div class="ai-badge">🤖 AI インサイト</div>
+                <div class="insights-grid">
+                    <div class="insight-item">
+                        <div class="insight-header">
+                            <span class="insight-icon">🎯</span>
+                            <span class="insight-title">最適マッチング</span>
+                        </div>
+                        <div class="insight-content">
+                            「高齢者見守りサービス」プロジェクトで、あなたのIoT技術スキルが95%マッチしています。富山テック・包括支援センター・自治会との協働が提案されています。
+                        </div>
+                    </div>
+                    <div class="insight-item">
+                        <div class="insight-header">
+                            <span class="insight-icon">📚</span>
+                            <span class="insight-title">政策要約</span>
+                        </div>
+                        <div class="insight-content">
+                            富山県DX推進計画が更新されました。市民参加型スマートシティ構想で、3つの新しい協働機会が特定されています。
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ProSocial Feed -->
+            <div class="feed-container">
+                <div class="feed-header">
+                    <div class="feed-title">🌉 プロソーシャル・フィード</div>
+                    <div class="feed-filters">
+                        <button class="filter-btn active">ブリッジング</button>
+                        <button class="filter-btn">プロジェクト</button>
+                        <button class="filter-btn">政策</button>
+                        <button class="filter-btn">資金</button>
+                    </div>
+                </div>
+
+                <!-- Post Composer -->
+                <div class="post-composer">
+                    <textarea class="composer-textarea" placeholder="建設的な提案や意見を共有してください。AIがブリッジング度を評価します..."></textarea>
+                    <div class="composer-actions">
+                        <div class="action-buttons">
+                            <button class="action-btn btn-bridge">🌉 ブリッジング投稿</button>
+                            <button class="action-btn btn-project">📋 プロジェクト提案</button>
+                        </div>
+                        <div style="color: #94a3b8; font-size: 12px;">AI分析中...</div>
+                    </div>
+                </div>
+
+                <!-- Feed Posts -->
+                <div class="post-item" style="border-color: rgba(71, 85, 105, 0.3);">
+                    <div class="post-header">
+                        <div class="post-avatar" style="background: linear-gradient(45deg, #10b981, #34d399); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">山</div>
+                        <div class="author-info">
+                            <div class="author-name">山田教授</div>
+                            <div class="post-meta">富山大学・AI専門 | 30分前</div>
+                        </div>
+                        <div class="bridge-score">🌉 92%</div>
+                    </div>
+                    <div class="post-content">
+                        高齢者見守りシステムについて、技術的課題と社会的ニーズの両方を考慮した統合アプローチを提案します。IoT技術の導入には確かにコストがかかりますが、段階的実装により初期投資を抑制しつつ、地域コミュニティの結束も強化できるのではないでしょうか。
+                    </div>
+                    <div class="post-engagement">
+                        <div class="engagement-buttons">
+                            <button class="engagement-btn">👍 47</button>
+                            <button class="engagement-btn">🤔 8</button>
+                            <button class="engagement-btn">💬 15</button>
+                            <button class="engagement-btn">🔄 23</button>
+                        </div>
+                        <div style="font-size: 12px; color: #94a3b8;">
+                            💰 関連予算: ¥2.5M | 👥 関心者: 34名
+                        </div>
+                    </div>
+                </div>
+
+                <div class="post-item" style="border-color: rgba(71, 85, 105, 0.3);">
+                    <div class="post-header">
+                        <div class="post-avatar" style="background: linear-gradient(45deg, #ef4444, #f87171); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">市</div>
+                        <div class="author-info">
+                            <div class="author-name">富山市政策企画課</div>
+                            <div class="post-meta">行政 | 1時間前</div>
+                        </div>
+                        <div class="bridge-score">🏛️ 公式</div>
+                    </div>
+                    <div class="post-content">
+                        【政策更新】スマートシティ推進計画の市民参加枠を拡大します。特にIoT、データ分析、コミュニティ運営の専門性をお持ちの方との協働を希望しています。予算¥15Mの一部を市民主導プロジェクトに配分予定です。
+                    </div>
+                    <div class="post-engagement">
+                        <div class="engagement-buttons">
+                            <button class="engagement-btn">👍 89</button>
+                            <button class="engagement-btn">💡 34</button>
+                            <button class="engagement-btn">📋 申請</button>
+                        </div>
+                        <div style="font-size: 12px; color: #94a3b8;">
+                            📊 AI要約済み | 🔗 詳細リンク
+                        </div>
+                    </div>
+                </div>
+
+                <div class="post-item" style="border-color: rgba(71, 85, 105, 0.3);">
+                    <div class="post-header">
+                        <div class="post-avatar" style="background: linear-gradient(45deg, #3b82f6, #60a5fa); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">T</div>
+                        <div class="author-info">
+                            <div class="author-name">富山テック株式会社</div>
+                            <div class="post-meta">民間企業・技術 | 2時間前</div>
+                        </div>
+                        <div class="bridge-score">🌉 85%</div>
+                    </div>
+                    <div class="post-content">
+                        地域課題解決における産学官連携について。我々の技術リソースを地域に還元したいと考えています。特に教育・福祉・環境分野でのIoT活用に関して、技術提供と人材派遣の両面でサポート可能です。持続可能なビジネスモデルも含めて検討したいと思います。
+                    </div>
+                    <div class="post-engagement">
+                        <div class="engagement-buttons">
+                            <button class="engagement-btn">🤝 67</button>
+                            <button class="engagement-btn">💬 28</button>
+                            <button class="engagement-btn">📋 相談</button>
+                        </div>
+                        <div style="font-size: 12px; color: #94a3b8;">
+                            💼 提供可能: 技術者5名 | 💰 投資意向: ¥5M
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Connections Panel -->
+        <div class="connections-panel">
+            <div class="connections-header">
+                <div class="connections-title">🕸️ ネットワーク可視化</div>
+            </div>
+
+            <!-- Network Visualization -->
+            <div class="network-viz">
+                <canvas id="network-canvas" style="width: 337px; height: 248px;" data-engine="three.js r155" width="337" height="248"></canvas>
+                <!-- Data streams -->
+                <div class="data-stream" style="left: 20%; animation-delay: 0s;"></div>
+                <div class="data-stream" style="left: 50%; animation-delay: 1s;"></div>
+                <div class="data-stream" style="left: 80%; animation-delay: 2s;"></div>
+            </div>
+
+            <!-- Money Flow Section -->
+            <div class="money-flow-section">
+                <div class="flow-title">
+                    <span style="margin-right: 8px;">💰</span>
+                    リアルタイム資金フロー
+                </div>
+                <div class="flow-item">
+                    <div class="flow-label">今月の地域循環額</div>
+                    <div class="flow-amount">¥207.3M</div>
+                </div>
+                <div class="flow-item">
+                    <div class="flow-label">プロボノ換算価値</div>
+                    <div class="flow-amount">¥186.9M</div>
+                </div>
+                <div class="flow-item">
+                    <div class="flow-label">スキル提供総時間</div>
+                    <div class="flow-amount">2,847h</div>
+                </div>
+                <div class="flow-item">
+                    <div class="flow-label">地域インパクト指数</div>
+                    <div class="flow-amount">94.2</div>
+                </div>
+            </div>
+
+            <!-- Active Projects -->
+            <div class="active-projects">
+                <div style="font-size: 16px; font-weight: 600; color: #f1f5f9; margin-bottom: 15px;">
+                    📋 アクティブプロジェクト
+                </div>
+                <div class="project-item">
+                    <div class="project-name">高齢者見守りシステム</div>
+                    <div class="project-status">メンバー募集中 • 4/7名</div>
+                </div>
+                <div class="project-item">
+                    <div class="project-name">子育て支援アプリ</div>
+                    <div class="project-status">開発中 • 進捗 78%</div>
+                </div>
+                <div class="project-item">
+                    <div class="project-name">商店街DX支援</div>
+                    <div class="project-status">入札受付中 • 締切 6/30</div>
+                </div>
+                <div class="project-item">
+                    <div class="project-name">環境教育VR</div>
+                    <div class="project-status">企画段階 • アイデア募集</div>
+                </div>
+            </div>
+
+            <!-- LLM Knowledge Base -->
+            <div class="knowledge-base">
+                <div style="font-size: 16px; font-weight: 600; color: #f1f5f9; margin-bottom: 15px;">
+                    🧠 AIナレッジベース
+                </div>
+                <div class="knowledge-item">
+                    <div class="knowledge-title">富山県DX推進計画 更新版</div>
+                    <div class="knowledge-summary">
+                        市民参加型スマートシティ構想の3つのポイントと15の協働機会をAIが要約
+                    </div>
+                </div>
+                <div class="knowledge-item">
+                    <div class="knowledge-title">地域包括ケア システム指針</div>
+                    <div class="knowledge-summary">
+                        高齢者支援におけるテクノロジー活用のベストプラクティス集
+                    </div>
+                </div>
+                <div class="knowledge-item">
+                    <div class="knowledge-title">中小企業DX支援 補助金ガイド</div>
+                    <div class="knowledge-summary">
+                        申請方法から活用事例まで、わかりやすい解説とチェックリスト
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Action Button -->
+    <div class="floating-fab" onclick="showCreateMenu()">➕</div>
+
+    <script>
+        // Initialize Network Visualization
+        function initNetworkVisualization() {
+            const canvas = document.getElementById('network-canvas');
+            if (!canvas) return;
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, canvas.offsetWidth / canvas.offsetHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
+            
+            renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
+            renderer.setClearColor(0x000000, 0);
+
+            // Create network nodes for different actor types
+            const nodeGeometry = new THREE.SphereGeometry(0.08, 12, 12);
+            const nodes = [];
+            const connections = [];
+
+            // Color schemes for different actor types
+            const materials = {
+                government: new THREE.MeshBasicMaterial({ color: 0xef4444 }),
+                business: new THREE.MeshBasicMaterial({ color: 0x3b82f6 }),
+                npo: new THREE.MeshBasicMaterial({ color: 0x10b981 }),
+                citizen: new THREE.MeshBasicMaterial({ color: 0x8b5cf6 }),
+                academic: new THREE.MeshBasicMaterial({ color: 0xf59e0b })
+            };
+
+            // Create nodes
+            const actorTypes = ['government', 'business', 'npo', 'citizen', 'academic'];
+            for (let i = 0; i < 25; i++) {
+                const actorType = actorTypes[Math.floor(Math.random() * actorTypes.length)];
+                const node = new THREE.Mesh(nodeGeometry, materials[actorType]);
+                
+                // Position nodes in a network layout
+                const angle = (i / 25) * Math.PI * 2;
+                const radius = 0.6 + Math.random() * 0.4;
+                const layer = Math.floor(i / 5);
+                
+                node.position.set(
+                    Math.cos(angle) * radius,
+                    (Math.random() - 0.5) * 0.6 + layer * 0.2 - 0.4,
+                    Math.sin(angle) * radius
+                );
+                
+                nodes.push(node);
+                scene.add(node);
+            }
+
+            // Create connections between nodes
+            const lineMaterial = new THREE.LineBasicMaterial({ 
+                color: 0x06b6d4, 
+                transparent: true, 
+                opacity: 0.4 
+            });
+
+            for (let i = 0; i < 30; i++) {
+                const node1 = nodes[Math.floor(Math.random() * nodes.length)];
+                const node2 = nodes[Math.floor(Math.random() * nodes.length)];
+                
+                if (node1 !== node2) {
+                    const points = [node1.position, node2.position];
+                    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                    const line = new THREE.Line(geometry, lineMaterial);
+                    connections.push(line);
+                    scene.add(line);
+                }
+            }
+
+            // Add central hub (user)
+            const centralGeometry = new THREE.SphereGeometry(0.12, 16, 16);
+            const centralMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x06b6d4,
+                transparent: true,
+                opacity: 0.9
+            });
+            const centralNode = new THREE.Mesh(centralGeometry, centralMaterial);
+            centralNode.position.set(0, 0, 0);
+            scene.add(centralNode);
+
+            camera.position.z = 2;
+
+            // Animation
+            function animate() {
+                requestAnimationFrame(animate);
+
+                // Rotate the entire network
+                scene.rotation.y += 0.003;
+
+                // Pulse the central node
+                const scale = 1 + Math.sin(Date.now() * 0.003) * 0.1;
+                centralNode.scale.setScalar(scale);
+
+                // Animate node positions slightly
+                nodes.forEach(node => {
+                    node.position.y += Math.sin(Date.now() * 0.002 + node.position.x) * 0.0005;
+                });
+
+                // Animate connection opacity
+                connections.forEach((line, index) => {
+                    line.material.opacity = 0.2 + Math.sin(Date.now() * 0.001 + index) * 0.2;
+                });
+
+                renderer.render(scene, camera);
+            }
+
+            animate();
+
+            // Handle resize
+            window.addEventListener('resize', () => {
+                const width = canvas.offsetWidth;
+                const height = canvas.offsetHeight;
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+                renderer.setSize(width, height);
+            });
+        }
+
+        // Interactive functions
+        function showCreateMenu() {
+            const options = [
+                '🚀 新プロジェクト提案',
+                '🤝 スキル提供登録',
+                '💡 課題・アイデア投稿',
+                '💰 資金提供申請',
+                '📋 プロボノ参加',
+                '🏛️ 政策コメント'
+            ];
+            
+            const menu = options.join('\n');
+            alert(`新規作成メニュー:\n\n${menu}`);
+        }
+
+        // Simulate real-time updates
+        function simulateRealTimeUpdates() {
+            setInterval(() => {
+                // Update money flow amounts
+                const flowAmounts = document.querySelectorAll('.flow-amount');
+                flowAmounts.forEach(amount => {
+                    if (amount.textContent.includes('¥')) {
+                        const current = parseFloat(amount.textContent.replace(/[¥M]/g, ''));
+                        const newAmount = (current + Math.random() * 0.5).toFixed(1);
+                        amount.textContent = `¥${newAmount}M`;
+                    }
+                });
+
+                // Update notification counts
+                const notifications = document.querySelectorAll('.notification-count');
+                notifications.forEach(notif => {
+                    if (Math.random() < 0.1) {
+                        const current = parseInt(notif.textContent);
+                        notif.textContent = current + 1;
+                    }
+                });
+            }, 5000);
+        }
+
+        // Add engagement animations
+        function addEngagementAnimations() {
+            const engagementButtons = document.querySelectorAll('.engagement-btn, .action-btn');
+            engagementButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.target.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        e.target.style.transform = 'scale(1)';
+                    }, 150);
+                    
+                    // Show notification
+                    showNotification('アクションを実行しました！');
+                });
+            });
+
+            // Add hover effects to posts
+            const posts = document.querySelectorAll('.post-item');
+            posts.forEach(post => {
+                post.addEventListener('mouseenter', () => {
+                    post.style.borderColor = 'rgba(6, 182, 212, 0.3)';
+                });
+                post.addEventListener('mouseleave', () => {
+                    post.style.borderColor = 'rgba(71, 85, 105, 0.3)';
+                });
+            });
+        }
+
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(45deg, #8b5cf6, #06b6d4);
+                color: white;
+                padding: 15px 25px;
+                border-radius: 25px;
+                z-index: 1000;
+                animation: slideIn 0.3s ease;
+                font-weight: 600;
+                box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // AI writing assistant for composer
+        function initAIAssistant() {
+            const textarea = document.querySelector('.composer-textarea');
+            const indicator = document.querySelector('.composer-actions div:last-child');
+            
+            if (textarea && indicator) {
+                textarea.addEventListener('input', () => {
+                    if (textarea.value.length > 10) {
+                        indicator.textContent = 'AI分析中...';
+                        indicator.style.color = '#06b6d4';
+                        
+                        setTimeout(() => {
+                            const bridgeScore = Math.floor(Math.random() * 40) + 60;
+                            indicator.textContent = `ブリッジング度: ${bridgeScore}%`;
+                            indicator.style.color = bridgeScore > 80 ? '#10b981' : '#f59e0b';
+                        }, 1500);
+                    } else {
+                        indicator.textContent = 'AI分析中...';
+                        indicator.style.color = '#94a3b8';
+                    }
+                });
+            }
+        }
+
+        // Initialize everything
+        document.addEventListener('DOMContentLoaded', () => {
+            initNetworkVisualization();
+            simulateRealTimeUpdates();
+            addEngagementAnimations();
+            initAIAssistant();
+        });
+
+        // CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+<!-- Code injected by live-server -->
+<script>
+	// <![CDATA[  <-- For SVG support
+	if ('WebSocket' in window) {
+		(function () {
+			function refreshCSS() {
+				var sheets = [].slice.call(document.getElementsByTagName("link"));
+				var head = document.getElementsByTagName("head")[0];
+				for (var i = 0; i < sheets.length; ++i) {
+					var elem = sheets[i];
+					var parent = elem.parentElement || head;
+					parent.removeChild(elem);
+					var rel = elem.rel;
+					if (elem.href && typeof rel != "string" || rel.length == 0 || rel.toLowerCase() == "stylesheet") {
+						var url = elem.href.replace(/(&|\?)_cacheOverride=\d+/, '');
+						elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_cacheOverride=' + (new Date().valueOf());
+					}
+					parent.appendChild(elem);
+				}
+			}
+			var protocol = window.location.protocol === 'http:' ? 'ws://' : 'wss://';
+			var address = protocol + window.location.host + window.location.pathname + '/ws';
+			var socket = new WebSocket(address);
+			socket.onmessage = function (msg) {
+				if (msg.data == 'reload') window.location.reload();
+				else if (msg.data == 'refreshcss') refreshCSS();
+			};
+			if (sessionStorage && !sessionStorage.getItem('IsThisFirstTime_Log_From_LiveServer')) {
+				console.log('Live reload enabled.');
+				sessionStorage.setItem('IsThisFirstTime_Log_From_LiveServer', true);
+			}
+		})();
+	}
+	else {
+		console.error('Upgrade your browser. This Browser is NOT supported WebSocket for Live-Reloading.');
+	}
+	// ]]>
+</script>
+
+</body></html>
